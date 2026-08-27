@@ -21,6 +21,14 @@ router.post('/vendors', verifyToken, requireRole('admin'), async (req, res) => {
   res.status(201).json({ message: 'Vendor added', vendor: data });
 });
 
+router.delete('/vendors/:id', verifyToken, requireRole('admin'), async (req, res) => {
+  const { error: detachError } = await supabase.from('purchase_requests').update({ vendor_id: null }).eq('vendor_id', req.params.id);
+  if (detachError) return res.status(500).json({ error: detachError.message });
+  const { error } = await supabase.from('vendors').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'Vendor deleted' });
+});
+
 // Anyone logged in can view the vendor list
 router.get('/vendors', verifyToken, async (req, res) => {
   const { data, error } = await supabase.from('vendors').select('*');

@@ -70,7 +70,7 @@ router.get('/leave-requests/mine', verifyToken, async (req, res) => {
 router.get('/leave-requests', verifyToken, requireRole('manager', 'admin'), async (req, res) => {
   const { data, error } = await supabase
     .from('leave_requests')
-    .select('*, profiles(full_name, department)')
+    .select('id, employee_id, start_date, end_date, reason, status, created_at, profiles!leave_requests_employee_id_fkey(full_name, department)')
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -114,6 +114,30 @@ router.post('/employees', verifyToken, requireRole('admin'), async (req, res) =>
 
   if (profileError) return res.status(500).json({ error: profileError.message });
   res.status(201).json({ message: `${role} account created`, employee: profile });
+});
+
+router.delete('/employees/:id', verifyToken, requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  if (id === req.user.id) return res.status(400).json({ error: 'You cannot delete your own admin account' });
+
+  const [{ data: leaves, error: leaveLookupError }, { data: purchases, error: purchaseLookupError }] = await Promise.all([
+    supabase.from('leave_requests').select('id').eq('employee_id', id),
+    supabase.from('purchase_requests').select('id').eq('requester_id', id),
+  ]);
+  if (leaveLookupError || purchaseLookupError) return res.status(500).json({ error: 'Unable to find employee requests' });
+
+  const leaveIds = (leaves || []).map((item) => item.id);
+  const purchaseIds = (purchases || []).map((item) => item.id);
+  if (leaveIds.length) await supabase.from('approval_requests').delete().in('leave_request_id', leaveIds);
+  if (purchaseIds.length) await supabase.from('approval_requests').delete().in('purchase_request_id', purchaseIds);
+  if (leaveIds.length) await supabase.from('leave_requests').delete().in('id', leaveIds);
+  if (purchaseIds.length) await supabase.from('purchase_requests').delete().in('id', purchaseIds);
+  await supabase.from('notifications').delete().eq('user_id', id);
+  const { error: profileError } = await supabase.from('profiles').delete().eq('id', id);
+  if (profileError) return res.status(500).json({ error: profileError.message });
+  const { error: authError } = await supabase.auth.admin.deleteUser(id);
+  if (authError) return res.status(500).json({ error: authError.message });
+  res.json({ message: 'Account deleted' });
 });
 
 module.exports = router;

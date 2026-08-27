@@ -8,6 +8,7 @@ import ApprovalsDashboard from './pages/ApprovalsDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminRequests from './pages/AdminRequests';
 import CreateEmployee from './pages/CreateEmployee';
+import AdminManagement from './pages/AdminManagement';
 import './App.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -35,6 +36,7 @@ function AppRoutes() {
       <Route path="/approvals" element={<ProtectedRoute roles={['manager', 'admin']}><ApprovalsDashboard /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/employees/new" element={<ProtectedRoute roles={['admin']}><CreateEmployee /></ProtectedRoute>} />
+      <Route path="/admin/manage" element={<ProtectedRoute roles={['admin']}><AdminManagement /></ProtectedRoute>} />
       <Route path="/admin/hr" element={<ProtectedRoute roles={['admin']}><AdminRequests type="leave" /></ProtectedRoute>} />
       <Route path="/admin/procurement" element={<ProtectedRoute roles={['admin']}><AdminRequests type="purchase" /></ProtectedRoute>} />
     </Route>
