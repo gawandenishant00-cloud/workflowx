@@ -31,6 +31,10 @@ async function verifyToken(req, res, next) {
     return res.status(401).json({ error: 'Profile not found' });
   }
 
+  if (profile.employment_status === 'offboarded') {
+    return res.status(403).json({ error: 'This account has been offboarded' });
+  }
+
   req.user = profile;
   next();
 }

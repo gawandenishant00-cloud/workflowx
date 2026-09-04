@@ -75,7 +75,7 @@ router.patch('/:id', verifyToken, requireRole('manager', 'admin'), async (req, r
   } else if (approval.purchase_request_id) {
     const { data: purchase } = await supabase
       .from('purchase_requests')
-      .update({ status: decision })
+      .update({ status: decision, asset_status: decision === 'approved' ? 'assigned' : 'not_applicable' })
       .eq('id', approval.purchase_request_id)
       .select()
       .single();

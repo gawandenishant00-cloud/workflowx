@@ -9,6 +9,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminRequests from './pages/AdminRequests';
 import CreateEmployee from './pages/CreateEmployee';
 import AdminManagement from './pages/AdminManagement';
+import EmployeeExit from './pages/EmployeeExit';
+import AdminAssets from './pages/AdminAssets';
+import AdminVendorCatalog from './pages/AdminVendorCatalog';
 import './App.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -37,8 +40,11 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/employees/new" element={<ProtectedRoute roles={['admin']}><CreateEmployee /></ProtectedRoute>} />
       <Route path="/admin/manage" element={<ProtectedRoute roles={['admin']}><AdminManagement /></ProtectedRoute>} />
+      <Route path="/admin/assets" element={<ProtectedRoute roles={['admin']}><AdminAssets /></ProtectedRoute>} />
+      <Route path="/admin/vendors" element={<ProtectedRoute roles={['admin']}><AdminVendorCatalog /></ProtectedRoute>} />
       <Route path="/admin/hr" element={<ProtectedRoute roles={['admin']}><AdminRequests type="leave" /></ProtectedRoute>} />
       <Route path="/admin/procurement" element={<ProtectedRoute roles={['admin']}><AdminRequests type="purchase" /></ProtectedRoute>} />
+      <Route path="/leave-company" element={<ProtectedRoute roles={['employee']}><EmployeeExit /></ProtectedRoute>} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>;

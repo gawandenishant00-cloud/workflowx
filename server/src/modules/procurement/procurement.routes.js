@@ -29,6 +29,20 @@ router.delete('/vendors/:id', verifyToken, requireRole('admin'), async (req, res
   res.json({ message: 'Vendor deleted' });
 });
 
+router.post('/vendors/:id/items', verifyToken, requireRole('admin'), async (req, res) => {
+  const { item_name, unit_price } = req.body;
+  if (!item_name || !Number.isFinite(Number(unit_price)) || Number(unit_price) < 0) return res.status(400).json({ error: 'item_name and a valid unit_price are required' });
+  const { data, error } = await supabase.from('vendor_items').insert({ vendor_id: req.params.id, item_name, unit_price: Number(unit_price) }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json({ message: 'Vendor item added', item: data });
+});
+
+router.get('/vendors/:id/items', verifyToken, async (req, res) => {
+  const { data, error } = await supabase.from('vendor_items').select('*').eq('vendor_id', req.params.id).order('item_name');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // Anyone logged in can view the vendor list
 router.get('/vendors', verifyToken, async (req, res) => {
   const { data, error } = await supabase.from('vendors').select('*');
@@ -38,10 +52,20 @@ router.get('/vendors', verifyToken, async (req, res) => {
 
 // Employee submits a purchase request
 router.post('/purchase-requests', verifyToken, async (req, res) => {
-  const { vendor_id, item_description, amount } = req.body;
+  const { vendor_id, vendor_item_id, item_description, quantity = 1, unit_price, amount } = req.body;
+  const parsedQuantity = Number(quantity);
+  let parsedUnitPrice = Number(unit_price ?? amount ?? 0);
+  let requestedItem = item_description;
+  if (vendor_item_id) {
+    const { data: catalogItem, error: catalogError } = await supabase.from('vendor_items').select('vendor_id, item_name, unit_price').eq('id', vendor_item_id).single();
+    if (catalogError || !catalogItem || catalogItem.vendor_id !== vendor_id) return res.status(400).json({ error: 'Selected catalog item is invalid' });
+    requestedItem = catalogItem.item_name;
+    parsedUnitPrice = Number(catalogItem.unit_price);
+  }
+  const totalAmount = parsedQuantity * parsedUnitPrice;
 
-  if (!item_description || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-    return res.status(400).json({ error: 'item_description and amount are required' });
+  if (!requestedItem || !Number.isInteger(parsedQuantity) || parsedQuantity <= 0 || !Number.isFinite(parsedUnitPrice) || parsedUnitPrice < 0) {
+    return res.status(400).json({ error: 'item_description and quantity are required; price is optional' });
   }
 
   const { data: purchaseRequest, error: purchaseError } = await supabase
@@ -49,8 +73,11 @@ router.post('/purchase-requests', verifyToken, async (req, res) => {
     .insert({
       requester_id: req.user.id,
       vendor_id,
-      item_description,
-      amount,
+      vendor_item_id: vendor_item_id || null,
+      item_description: requestedItem,
+      quantity: parsedQuantity,
+      unit_price: parsedUnitPrice,
+      amount: totalAmount,
     })
     .select()
     .single();
@@ -66,7 +93,7 @@ router.post('/purchase-requests', verifyToken, async (req, res) => {
   // Notify the requester that their purchase request was submitted
   await notifyManagers(
     'Purchase Request Submitted',
-    `${req.user.full_name}'s purchase request for "${item_description}" (₹${amount}) is pending approval.`,
+    `${req.user.full_name}'s purchase request for "${requestedItem}" (${parsedQuantity} item(s), ${parsedUnitPrice ? `total ₹${totalAmount}` : 'price pending'}) is pending approval.`,
     'purchase'
   );
 
@@ -94,6 +121,22 @@ router.get('/purchase-requests', verifyToken, requireRole('manager', 'admin'), a
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+router.delete('/purchase-requests/:id', verifyToken, requireRole('admin'), async (req, res) => {
+  const { data: request, error: lookupError } = await supabase
+    .from('purchase_requests')
+    .select('id, status, item_description')
+    .eq('id', req.params.id)
+    .single();
+  if (lookupError || !request) return res.status(404).json({ error: 'Purchase request not found' });
+  if (request.status === 'pending') return res.status(409).json({ error: 'Pending requests cannot be deleted' });
+
+  const { error: approvalError } = await supabase.from('approval_requests').delete().eq('purchase_request_id', request.id);
+  if (approvalError) return res.status(500).json({ error: approvalError.message });
+  const { error } = await supabase.from('purchase_requests').delete().eq('id', request.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: `Purchase request "${request.item_description}" deleted` });
 });
 
 module.exports = router;

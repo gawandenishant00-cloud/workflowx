@@ -78,9 +78,60 @@ router.get('/leave-requests', verifyToken, requireRole('manager', 'admin'), asyn
 });
 
 router.get('/employees', verifyToken, requireRole('admin'), async (req, res) => {
-  const { data, error } = await supabase.from('profiles').select('id, full_name, role, department, created_at').order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('profiles').select('id, full_name, role, department, employment_status, created_at').order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+router.get('/employee-assets', verifyToken, requireRole('admin'), async (req, res) => {
+  const { data, error } = await supabase
+    .from('purchase_requests')
+    .select('id, item_description, amount, status, asset_status, returned_at, created_at, profiles!purchase_requests_requester_id_fkey(full_name, department)')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+router.patch('/employees/me/return-asset', verifyToken, async (req, res) => {
+  const { purchase_request_id } = req.body;
+  if (!purchase_request_id) return res.status(400).json({ error: 'purchase_request_id is required' });
+  const { data, error } = await supabase
+    .from('purchase_requests')
+    .update({ asset_status: 'returned', returned_at: new Date().toISOString() })
+    .eq('id', purchase_request_id)
+    .eq('requester_id', req.user.id)
+    .eq('status', 'approved')
+    .eq('asset_status', 'assigned')
+    .select('id, item_description, asset_status, returned_at')
+    .single();
+  if (error || !data) return res.status(404).json({ error: 'Assigned item not found or already returned' });
+  res.json({ message: 'Item returned to company', item: data });
+});
+
+router.patch('/employees/me/leave-company', verifyToken, async (req, res) => {
+  const { data: returnedAssets, error: assetError } = await supabase
+    .from('purchase_requests')
+    .update({ asset_status: 'returned', returned_at: new Date().toISOString() })
+    .eq('requester_id', req.user.id)
+    .eq('status', 'approved')
+    .eq('asset_status', 'assigned')
+    .select('id, item_description');
+  if (assetError) return res.status(500).json({ error: assetError.message });
+  const { error: profileError } = await supabase.from('profiles').update({ employment_status: 'offboarded' }).eq('id', req.user.id);
+  if (profileError) return res.status(500).json({ error: profileError.message });
+  res.json({ message: 'Company exit recorded', returned_assets: returnedAssets || [] });
+});
+
+router.delete('/leave-requests/:id', verifyToken, requireRole('admin'), async (req, res) => {
+  const { data: request, error: lookupError } = await supabase.from('leave_requests').select('id, status').eq('id', req.params.id).single();
+  if (lookupError || !request) return res.status(404).json({ error: 'Leave request not found' });
+  if (request.status === 'pending') return res.status(409).json({ error: 'Pending requests cannot be deleted' });
+  const { error: approvalError } = await supabase.from('approval_requests').delete().eq('leave_request_id', request.id);
+  if (approvalError) return res.status(500).json({ error: approvalError.message });
+  const { error } = await supabase.from('leave_requests').delete().eq('id', request.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ message: 'Leave request deleted' });
 });
 
 // Admin creates an employee account and profile
