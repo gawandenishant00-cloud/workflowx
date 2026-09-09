@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE } from './apiBase';
 
 export async function api(path, session, options = {}) {
   if (!session?.access_token) throw new Error('Your session has expired. Please log in again.');
