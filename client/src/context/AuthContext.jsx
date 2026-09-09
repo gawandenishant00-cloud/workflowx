@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { API_BASE } from '../lib/api';
 
 const AuthContext = createContext(null);
-const API_URL = import.meta.env.VITE_API_URL || 'https://workflowx-2io0.onrender.com';
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
       setProfile(null); 
       return;
     }
-    const response = await fetch(`${API_URL}/me`, {
+    const response = await fetch(`${API_BASE}/me`, {
       headers: { Authorization: `Bearer ${nextSession.access_token}` },
     });
     if (!response.ok) throw new Error('Unable to load your profile');

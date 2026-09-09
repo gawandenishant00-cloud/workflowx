@@ -1,4 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const PRODUCTION_API_BASE = 'https://workflowx-2io0.onrender.com';
+const configuredApiBase = import.meta.env.VITE_API_URL?.trim();
+
+export const API_BASE = configuredApiBase && !/localhost|127\.0\.0\.1/i.test(configuredApiBase)
+  ? configuredApiBase.replace(/\/$/, '')
+  : PRODUCTION_API_BASE;
 
 export async function api(path, session, options = {}) {
   if (!session?.access_token) throw new Error('Your session has expired. Please log in again.');
