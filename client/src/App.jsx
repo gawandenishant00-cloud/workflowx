@@ -15,10 +15,10 @@ import AdminVendorCatalog from './pages/AdminVendorCatalog';
 import './App.css';
 
 function ProtectedRoute({ children, roles }) {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, profileError, loading } = useAuth();
   if (loading) return <div className="loading-screen"><span className="loader" />Loading workspace...</div>;
   if (!session) return <Navigate to="/login" replace />;
-  if (!profile) return <div className="loading-screen">Profile unavailable. Please contact an administrator.</div>;
+  if (!profile) return <div className="loading-screen">Unable to load your profile. {profileError || 'Please contact an administrator.'}</div>;
   if (roles && !roles.includes(profile.role)) return <Navigate to="/" replace />;
   return children;
 }

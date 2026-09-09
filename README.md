@@ -104,4 +104,4 @@ npm test
 
 ## Deployment
 
-Deploy the `server` directory to a Node hosting provider and the `client` directory to a Vite-compatible static host. Set production environment variables on the hosting providers and set `VITE_API_URL` to the deployed API URL.
+Deploy the `server` directory to a Node hosting provider and the `client` directory to a Vite-compatible static host. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on Render, and set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_API_URL` on Vercel. `VITE_API_URL` must be the Render service URL (for example, `https://workflowx-api.onrender.com`) without a trailing slash or `/api`; the frontend calls `/me` and `/api/...` itself. Redeploy the Vercel client after changing any `VITE_` variable because Vite embeds these values at build time.
