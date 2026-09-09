@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://workflowx-2io0.onrender.com';
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
 
   async function loadProfile(nextSession) {
     if (!nextSession) {
-      setProfile(null);
+      setProfile(null); 
       return;
     }
     const response = await fetch(`${API_URL}/me`, {
